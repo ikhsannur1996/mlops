@@ -42,7 +42,17 @@ sudo ss -lntp | grep ':5000'
 sudo ss -lntp | grep ':8000'
 ```
 
-Change host ports in `docker-compose.yml`.
+Change host ports in `docker-compose.yml` (and `scripts/start-mlflow.sh`
+for a local MLflow), then point `MLFLOW_TRACKING_URI` at the new port.
+
+On macOS the AirPlay receiver also listens on port 5000:
+
+```bash
+lsof -nP -i :5000
+```
+
+Disable it under System Settings > General > AirDrop & Handoff >
+AirPlay Receiver, or move MLflow to another port.
 
 ## MLflow has no experiments
 

@@ -3,7 +3,7 @@ IMAGE ?= credit-default-api:local
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-dev data mlflow up down logs train evaluate monitor retrain simulate simulate-drift test lint build clean
+.PHONY: help install install-dev data mlflow mlflow-public up up-public down logs train evaluate monitor retrain simulate simulate-drift test lint build clean
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -20,8 +20,14 @@ data: ## Generate the realistic train and test datasets
 mlflow: ## Start a local MLflow server on port 5000
 	bash scripts/start-mlflow.sh
 
+mlflow-public: ## Start local MLflow accepting any Host header (public demo)
+	MLFLOW_SERVER_ALLOWED_HOSTS='*' bash scripts/start-mlflow.sh
+
 up: ## Start MLflow and the API with Docker Compose
 	docker compose up -d --build
+
+up-public: ## Start the stack accepting any Host header (public demo)
+	MLFLOW_SERVER_ALLOWED_HOSTS='*' docker compose up -d --build
 
 down: ## Stop the Docker Compose stack
 	docker compose down

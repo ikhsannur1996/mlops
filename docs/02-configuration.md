@@ -38,6 +38,10 @@ MLFLOW_TRACKING_URI=http://mlflow:5000
 PREDICTION_DB=/app/predictions.db
 ```
 
+For public access set `MLFLOW_SERVER_ALLOWED_HOSTS` so the MLflow UI
+accepts your public host - see 06-public-web.md (`make up-public` is the
+shortcut).
+
 If running outside Docker:
 
 ```bash

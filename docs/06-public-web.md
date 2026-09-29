@@ -16,6 +16,27 @@ http://PUBLIC_IP:8000/docs
 
 FastAPI Swagger.
 
+## Public demo checklist (VM)
+
+```bash
+git clone https://github.com/ikhsannur1996/mlops.git && cd mlops
+make up-public      # compose stack that accepts any Host header
+sudo ufw allow 22/tcp && sudo ufw allow 5000,8000/tcp && sudo ufw enable
+```
+
+Open TCP 5000 and 8000 in the cloud security group as well (see
+"Cloud firewall" below), then from your laptop:
+
+```bash
+curl http://PUBLIC_IP:8000/health
+```
+
+and browse `http://PUBLIC_IP:5000` for MLflow and
+`http://PUBLIC_IP:8000/docs` for Swagger.
+
+Without Docker: `MLFLOW_SERVER_ALLOWED_HOSTS='*' make mlflow-public` plus
+`uvicorn app.main:app --host 0.0.0.0 --port 8000`.
+
 ## Allow the public host (MLflow)
 
 MLflow validates the `Host` header to block DNS rebinding attacks. Its
@@ -44,6 +65,30 @@ docker compose up -d
 Use a comma-separated list for several hosts (e.g.
 `PUBLIC_IP,mlflow.example.com`), or `*` to accept any host (demo only).
 Port 8000 has no such check.
+
+## No VM? Expose your laptop with a tunnel
+
+A quick tunnel gives you a public HTTPS URL without touching your router
+(the laptop must stay on). Use `*` for MLflow because the tunnel hostname
+changes on every run.
+
+```bash
+# terminal 1 - MLflow accepting any Host header
+MLFLOW_SERVER_ALLOWED_HOSTS='*' make mlflow
+
+# terminal 2 - FastAPI on all interfaces
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# terminals 3 and 4 - one tunnel per port
+cloudflared tunnel --url http://localhost:5000
+cloudflared tunnel --url http://localhost:8000
+```
+
+Each tunnel prints an `https://...trycloudflare.com` URL;
+`ngrok http 8000` works the same way if you prefer it.
+
+Note: on macOS the AirPlay receiver already occupies port 5000 - disable it
+first (see 07-troubleshooting.md).
 
 ## Verify listening ports
 
@@ -85,6 +130,14 @@ Cloud firewall/security group
 ```
 
 Open TCP 5000 and 8000 for the demo.
+
+## CORS
+
+FastAPI has no CORS middleware, which is fine for this demo: `/docs` and any
+same-origin browser call work out of the box, and the simulator calls the
+API from server side. If a browser app on another domain must call
+`/predict`, add `CORSMiddleware` to `app/main.py` with the origins you
+trust.
 
 ## Production recommendation
 

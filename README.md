@@ -243,6 +243,8 @@ docs/                step-by-step guides (01-11)
 ```bash
 make help       # list every target
 make up         # docker compose up -d --build
+make up-public  # same, but MLFLOW_SERVER_ALLOWED_HOSTS=* (public demo)
+make mlflow-public  # local MLflow accepting any Host header
 make data       # regenerate data/train.csv and data/test.csv
 make train      # python src/train.py
 make evaluate   # python src/evaluate.py
