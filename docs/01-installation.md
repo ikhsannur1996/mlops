@@ -58,18 +58,20 @@ docker ps
 
 ## 6. Copy the project
 
+The repository is [`ikhsannur1996/mlops`](https://github.com/ikhsannur1996/mlops).
+
 If using Git:
 
 ```bash
-git clone <YOUR_REPOSITORY>
-cd mlops-mlflow-public-e2e
+git clone https://github.com/ikhsannur1996/mlops.git
+cd mlops
 ```
 
 Or upload the ZIP and extract it:
 
 ```bash
-unzip mlops-mlflow-public-e2e.zip
-cd mlops-mlflow-public-e2e
+unzip mlops.zip
+cd mlops
 ```
 
 ## 7. Start the services
