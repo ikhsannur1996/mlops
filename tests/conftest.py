@@ -18,7 +18,9 @@ def isolated_runtime(tmp_path, monkeypatch):
     monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_uri)
     monkeypatch.setenv("PREDICTION_DB", str(tmp_path / "predictions.db"))
     monkeypatch.setenv("REPORTS_DIR", str(tmp_path / "reports"))
+    monkeypatch.setenv("SIMULATION_REPORT_DIR", str(tmp_path / "simulation"))
     monkeypatch.delenv("AUTO_RETRAIN", raising=False)
+    monkeypatch.delenv("DECISION_THRESHOLD", raising=False)
     monkeypatch.chdir(tmp_path)
 
     import mlflow
@@ -37,5 +39,11 @@ def repository_root():
 
 @pytest.fixture
 def train_frame(repository_root):
-    """The committed training dataset."""
+    """The committed training split."""
     return pd.read_csv(repository_root / "data" / "train.csv")
+
+
+@pytest.fixture
+def test_frame(repository_root):
+    """The committed holdout split."""
+    return pd.read_csv(repository_root / "data" / "test.csv")

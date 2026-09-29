@@ -28,6 +28,7 @@ artifacts/
 # Generated reports
 reports/evaluation/
 reports/monitoring/
+reports/simulation/
 
 # OS
 .DS_Store

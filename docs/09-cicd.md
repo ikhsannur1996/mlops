@@ -31,11 +31,15 @@ monitoring runs are written to a database that disappears with the runner.
 
 | File | Coverage |
 | --- | --- |
-| `tests/test_data_quality.py` | Schema, dtypes, ranges, target balance, duplicates |
-| `tests/test_training_pipeline.py` | `src/train.py` metrics, params, registered model version |
-| `tests/test_evaluation.py` | `src/evaluate.py` metrics plus all evaluation artifacts |
+| `tests/test_data_quality.py` | Split sizes, schema, ranges, bad rate, duplicates, overlap |
+| `tests/test_generate_data.py` | Generator reproducibility, calibration, disjoint splits |
+| `tests/test_training_pipeline.py` | Holdout metrics, params, decision threshold, registry version |
+| `tests/test_evaluation.py` | Scoring of the registered model plus all evaluation artifacts |
+| `tests/test_registry.py` | Latest registered version loading |
 | `tests/test_monitoring.py` | PSI helper behaviour and the monitoring run |
-| `tests/test_api.py` | `/health`, `/predict`, prediction persistence |
+| `tests/test_retrain.py` | Retraining decision logic (no-data / no-drift / locked / retrained) |
+| `tests/test_simulate.py` | Payloads, drift modes, contract checks, reports, live batch |
+| `tests/test_api.py` | `/health`, `/predict`, prediction persistence, `DECISION_THRESHOLD` |
 
 Every test runs with `MLFLOW_TRACKING_URI`, `PREDICTION_DB` and `REPORTS_DIR`
 pointed at a temporary directory, so the suite never mutates local state.
@@ -56,7 +60,7 @@ push / pull request
         ↓
    ruff check .
         ↓
-   pytest (train + evaluate + monitor + api)
+   pytest (data + train + evaluate + monitor + simulate + api)
         ↓
    docker compose config
         ↓

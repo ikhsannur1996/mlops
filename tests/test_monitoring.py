@@ -37,17 +37,13 @@ def test_monitoring_reports_ok_when_there_is_no_drift(train_frame):
     assert (reports_dir / "production_prediction_distribution.png").is_file()
 
 
-def test_monitoring_detects_drift(train_frame):
-    seed_predictions(
-        os.environ["PREDICTION_DB"],
-        make_prediction_rows(train_frame, income=500_000_000.0),
-    )
+def test_monitoring_detects_a_drifted_population(train_frame):
+    seed_predictions(os.environ["PREDICTION_DB"], make_prediction_rows(train_frame, drift="all"))
 
     report = monitor.main()
 
     assert report["status"] == "DRIFT"
     assert report["max_psi"] > report["threshold"]
-    assert report["drift"]["psi_income"] == report["max_psi"]
 
 
 def test_monitoring_returns_none_without_a_prediction_log():

@@ -4,19 +4,21 @@
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![MLflow](https://img.shields.io/badge/MLflow-tracking%20%2B%20registry-0194E2)
 
-A simple but complete MLOps portfolio project for credit-default prediction: data,
-training, evaluation, MLflow tracking and Model Registry, FastAPI serving,
-production monitoring, drift detection and drift-gated retraining — with linted,
-tested GitHub Actions CI.
+A simple but complete MLOps portfolio project for credit-default prediction: a
+realistic generated dataset with a held-out test split, training, evaluation,
+MLflow tracking and Model Registry, FastAPI serving, simulated production
+traffic, production monitoring, drift detection and drift-gated retraining —
+with linted, tested GitHub Actions CI.
 
 ## Lifecycle
 
-Data
+Data generation
 → Training
 → Evaluation
 → MLflow Tracking
 → Model Registry
 → FastAPI Serving
+→ Traffic Simulation
 → Prediction Logging
 → Production Monitoring
 → Drift Detection
@@ -77,13 +79,29 @@ make lint     # ruff check .
 make test     # pytest -q
 ```
 
-The suite covers data quality, training (metrics, params and Model Registry
-versions), evaluation artifacts, PSI-based drift monitoring, the FastAPI serving
-contract and the retraining decision logic. Every test runs against a throwaway
-SQLite MLflow backend, so no running server is required.
+The suite covers the data generator and data-quality gates, training (holdout
+metrics, params, decision threshold and Model Registry versions), evaluation
+artifacts, PSI-based drift monitoring, the FastAPI serving contract, the traffic
+simulator (payloads, drift modes, reports and a live end-to-end batch) and the
+retraining decision logic. Every test runs against a throwaway SQLite MLflow
+backend, so no running server is required.
 
 GitHub Actions runs the same gates plus a Docker build and compose validation on
 every push and pull request — see `docs/09-cicd.md`.
+
+## Data
+
+`data/train.csv` (8000 rows) and `data/test.csv` (2000 rows) are produced by
+`src/generate_data.py`: log-normal incomes, affordability-based loan sizing and a
+latent risk model calibrated to a 12% default rate, split into two disjoint,
+duplicate-free populations.
+
+```bash
+make data     # regenerate both splits — same seed, identical files
+```
+
+`train.csv` fits the model; `test.csv` is the holdout that evaluation scores and
+that the simulator samples from. See `docs/10-data.md`.
 
 ## Run with Docker
 
@@ -109,7 +127,20 @@ Then make predictions:
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"age":35,"income":10000000,"loan_amount":50000000,"tenure":24}'
 ```
 
-Make at least 10 predictions before monitoring.
+## Simulate production traffic
+
+Instead of clicking through Swagger, generate a whole batch of realistic
+predictions:
+
+```bash
+make simulate                      # 200 requests sampled from data/test.csv
+make simulate ARGS="--count 500"   # heavier batch
+make simulate-drift                # shifted population -> DRIFT in monitoring
+```
+
+The simulator validates every response against the serving contract, reports
+latency and throughput, and writes `reports/simulation/simulation-<drift>.json`.
+See `docs/11-api-simulation.md`.
 
 ## Run evaluation manually
 
@@ -179,22 +210,30 @@ Every path and threshold is configurable through environment variables. Copy
 | --- | --- | --- |
 | `MLFLOW_TRACKING_URI` | `http://localhost:5000` | train, evaluate, monitor, API |
 | `PREDICTION_DB` | `predictions.db` | API, monitor |
-| `TRAIN_DATA` | `data/train.csv` | train, evaluate, monitor |
+| `TRAIN_DATA` | `data/train.csv` | train, monitor |
+| `TEST_DATA` | `data/test.csv` | train, evaluate, simulate |
 | `REPORTS_DIR` | `reports` | evaluate, monitor |
+| `DECISION_THRESHOLD` | `0.5` | API — cut-off applied to `probability` |
 | `DRIFT_THRESHOLD` | `0.20` | monitor, retrain |
 | `AUTO_RETRAIN` | `0` | retrain |
+| `N_TRAIN`, `N_TEST`, `RANDOM_SEED`, `TARGET_DEFAULT_RATE` | `8000`, `2000`, `42`, `0.12` | generate_data |
+| `API_BASE_URL`, `SIMULATION_REQUESTS`, `SIMULATION_WORKERS`, `SIMULATION_DRIFT` | `http://localhost:8000`, `200`, `4`, `none` | simulate |
 
 ## Project layout
 
 ```text
 app/main.py          FastAPI service (predict + prediction logging)
-src/train.py         training, metrics and Model Registry registration
-src/evaluate.py      detailed evaluation reports logged to MLflow
+src/generate_data.py realistic train/test data generator
+src/train.py         training, holdout metrics and Model Registry registration
+src/evaluate.py      evaluation of the registered model, artifacts to MLflow
 src/monitor.py       production monitoring and PSI drift detection
 src/retrain.py       drift-gated retraining orchestration
-scripts/             MLflow bootstrap and training helpers
+src/simulate.py      production traffic simulator for /predict
+src/registry.py      load the newest registered model version
+src/metrics.py       shared metric computation
+scripts/             MLflow bootstrap, training and simulation helpers
 tests/               pytest suite used by CI
-docs/                step-by-step guides (01-09)
+docs/                step-by-step guides (01-11)
 .github/workflows/   GitHub Actions pipeline
 ```
 
@@ -203,10 +242,13 @@ docs/                step-by-step guides (01-09)
 ```bash
 make help       # list every target
 make up         # docker compose up -d --build
+make data       # regenerate data/train.csv and data/test.csv
 make train      # python src/train.py
 make evaluate   # python src/evaluate.py
 make monitor    # python src/monitor.py
 make retrain    # AUTO_RETRAIN=1 python src/retrain.py
+make simulate   # python src/simulate.py (ARGS="--count 500")
+make simulate-drift  # python src/simulate.py --drift all
 make test       # pytest -q
 make lint       # ruff check .
 make build      # docker build
@@ -217,7 +259,9 @@ make clean      # drop caches and local artifacts
 
 ```text
                   ┌───────────────┐
-                  │   train.csv   │
+                  │ generate_data │
+                  │  train.csv    │
+                  │  test.csv     │
                   └───────┬───────┘
                           ↓
                   ┌───────────────┐
@@ -235,9 +279,9 @@ make clean      # drop caches and local artifacts
                   │ Registry      │
                   └───────┬───────┘
                           ↓
-                  ┌───────────────┐
-                  │    FastAPI    │
-                  └───────┬───────┘
+   ┌────────────┐ ┌───────────────┐
+   │  simulate  │→│    FastAPI    │
+   └────────────┘ └───────┬───────┘
                           ↓
                     Predictions
                           ↓

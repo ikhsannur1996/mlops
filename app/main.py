@@ -1,16 +1,27 @@
 import os
 import sqlite3
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import mlflow
-import mlflow.sklearn
 import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE not in sys.path:
+    sys.path.insert(0, BASE)
+
+from src.registry import load_latest_model  # noqa: E402
+
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
 DB = os.getenv("PREDICTION_DB", "predictions.db")
+REGISTERED_MODEL = "credit-default"
+# Credit portfolios default at a low rate, so the naive 0.5 cut-off flags almost
+# nobody. The threshold analysis in MLflow (and src/train.py) shows where F1 or
+# the business cut-off peaks; set it here.
+DECISION_THRESHOLD = float(os.getenv("DECISION_THRESHOLD", "0.5"))
 
 class Customer(BaseModel):
     age: int
@@ -41,15 +52,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Credit Default MLOps API", lifespan=lifespan)
 
 def get_model():
-    client = mlflow.MlflowClient()
-    versions = client.search_model_versions("name='credit-default'")
-    if not versions:
-        raise RuntimeError("No registered model. Run training first.")
-    version = sorted(versions, key=lambda x: int(x.version), reverse=True)[0]
-    # Load the scikit-learn estimator (not a pyfunc wrapper) so predict_proba
-    # is available for the default probability.
-    model = mlflow.sklearn.load_model(version.source)
-    return model, str(version.version)
+    """Serve the newest registered version of the credit-default model."""
+    return load_latest_model(REGISTERED_MODEL)
 
 @app.get("/health")
 def health():
@@ -59,8 +63,8 @@ def health():
 def predict(customer: Customer):
     model, version = get_model()
     data = pd.DataFrame([customer.model_dump()])
-    prediction = int(model.predict(data)[0])
     probability = float(model.predict_proba(data)[0][1])
+    prediction = int(probability >= DECISION_THRESHOLD)
 
     with sqlite3.connect(DB) as conn:
         conn.execute(

@@ -3,7 +3,7 @@ IMAGE ?= credit-default-api:local
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-dev mlflow up down logs train evaluate monitor retrain test lint build clean
+.PHONY: help install install-dev data mlflow up down logs train evaluate monitor retrain simulate simulate-drift test lint build clean
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -13,6 +13,9 @@ install: ## Install runtime dependencies
 
 install-dev: ## Install runtime and development dependencies
 	$(PYTHON) -m pip install -r requirements.txt -r requirements-dev.txt
+
+data: ## Generate the realistic train and test datasets
+	$(PYTHON) src/generate_data.py
 
 mlflow: ## Start a local MLflow server on port 5000
 	bash scripts/start-mlflow.sh
@@ -38,6 +41,12 @@ monitor: ## Run production monitoring (drift, volume, quality)
 retrain: ## Monitor drift and retrain when the threshold is exceeded
 	AUTO_RETRAIN=1 $(PYTHON) src/retrain.py
 
+simulate: ## Send simulated production traffic to the API (ARGS="--count 500")
+	$(PYTHON) src/simulate.py $(ARGS)
+
+simulate-drift: ## Send drifted traffic so monitoring reports drift
+	$(PYTHON) src/simulate.py --drift all $(ARGS)
+
 test: ## Run the test suite
 	$(PYTHON) -m pytest -q
 
@@ -48,5 +57,5 @@ build: ## Build the API Docker image
 	docker build -t $(IMAGE) .
 
 clean: ## Remove caches and local run artifacts
-	rm -rf .pytest_cache .ruff_cache mlruns artifacts reports/evaluation reports/monitoring
+	rm -rf .pytest_cache .ruff_cache mlruns artifacts reports/evaluation reports/monitoring reports/simulation
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +

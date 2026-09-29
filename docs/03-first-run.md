@@ -20,7 +20,16 @@ Open:
 http://PUBLIC_IP:5000
 ```
 
-## 2. Train the model
+## 2. Generate the data (optional)
+
+`data/train.csv` and `data/test.csv` are committed, so you can train straight
+away. To regenerate them (same seed, identical files):
+
+```bash
+docker compose exec api python src/generate_data.py
+```
+
+## 3. Train the model
 
 If Python dependencies are installed on the host:
 
@@ -36,7 +45,7 @@ docker compose exec api python src/train.py
 docker compose exec api python src/evaluate.py
 ```
 
-## 3. Check MLflow
+## 4. Check MLflow
 
 Open the MLflow UI.
 
@@ -54,7 +63,7 @@ The run contains:
 - model
 - evaluation artifacts
 
-## 4. Check Model Registry
+## 5. Check Model Registry
 
 The training script registers:
 
@@ -64,7 +73,7 @@ credit-default
 
 The registered model version is used by FastAPI.
 
-## 5. Start API
+## 6. Start API
 
 ```bash
 docker compose up -d api
@@ -76,7 +85,7 @@ Open:
 http://PUBLIC_IP:8000/docs
 ```
 
-## 6. Test prediction
+## 7. Test prediction
 
 From Swagger:
 
@@ -101,13 +110,20 @@ The API stores the prediction in:
 predictions.db
 ```
 
-## 7. Generate enough predictions
+## 8. Generate enough predictions
 
-Monitoring requires at least 10 predictions in this demo.
+Monitoring requires at least 10 predictions in this demo, but a realistic batch
+is better than clicking in Swagger:
 
-Repeat the request with different values.
+```bash
+docker compose exec api python src/simulate.py --count 200
+```
 
-## 8. Run monitoring
+The simulator samples applicants from `data/test.csv`, checks every response,
+and writes `reports/simulation/simulation-none.json`. Add `--drift all` to send
+a shifted population (see `docs/11-api-simulation.md`).
+
+## 9. Run monitoring
 
 ```bash
 docker compose exec api python src/monitor.py
@@ -124,7 +140,7 @@ It records:
 - average probability
 - monitoring status
 
-## 9. Run retraining
+## 10. Run retraining
 
 Dry run (monitoring only, no retraining):
 

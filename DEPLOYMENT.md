@@ -24,7 +24,11 @@ http://PUBLIC_IP:8000/docs
 ```
 
 ## 6. Generate predictions
-Use Swagger `/predict`.
+Use Swagger `/predict` for a single call, or send a realistic batch:
+
+```bash
+docker compose exec api python src/simulate.py --count 200
+```
 
 ## 7. Monitor
 ```bash

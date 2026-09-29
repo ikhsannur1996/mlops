@@ -2,6 +2,8 @@
 
 import sqlite3
 
+from src import simulate
+
 PREDICTIONS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS predictions (
     timestamp TEXT,
@@ -23,24 +25,32 @@ def seed_predictions(db_path, rows):
         conn.executemany("INSERT INTO predictions VALUES (?,?,?,?,?,?,?,?)", rows)
 
 
-def make_prediction_rows(frame, probability=0.35, model_version="1", **overrides):
-    """Turn a training frame into prediction rows, optionally shifting features."""
+def _timestamp(index):
+    """A valid UTC timestamp string for a served request."""
+    hours, remainder = divmod(index, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"2026-01-01T{hours % 24:02d}:{minutes:02d}:{seconds:02d}+00:00"
+
+
+def make_prediction_rows(frame, probability=0.35, model_version="1", drift=None):
+    """Turn a customer frame into served-prediction rows.
+
+    When ``drift`` is given the features are shifted exactly the way
+    ``src/simulate.py`` shifts a drifted population, so the monitoring tests
+    exercise the same scenario the simulator produces in production.
+    """
     rows = []
     for index, row in frame.reset_index(drop=True).iterrows():
-        values = {
-            "age": float(row["age"]),
-            "income": float(row["income"]),
-            "loan_amount": float(row["loan_amount"]),
-            "tenure": float(row["tenure"]),
-        }
-        values.update(overrides)
+        payload = {feature: row[feature] for feature in simulate.FEATURES}
+        if drift is not None:
+            payload = simulate.apply_drift(payload, drift)
         rows.append(
             (
-                f"2026-01-01T00:00:{index:02d}+00:00",
-                values["age"],
-                values["income"],
-                values["loan_amount"],
-                values["tenure"],
+                _timestamp(index),
+                float(payload["age"]),
+                float(payload["income"]),
+                float(payload["loan_amount"]),
+                float(payload["tenure"]),
                 int(row["default"]),
                 probability,
                 model_version,

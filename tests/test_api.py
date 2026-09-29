@@ -59,3 +59,17 @@ def test_predict_rejects_an_invalid_payload():
 
     with TestClient(importlib.reload(api_module).app) as client:
         assert client.post("/predict", json={"age": "not-a-number"}).status_code == 422
+
+
+def test_a_lower_decision_threshold_flags_more_applicants(monkeypatch):
+    """DECISION_THRESHOLD is the operational cut-off, so the API must honour it."""
+    train_main()
+    monkeypatch.setenv("DECISION_THRESHOLD", "0.0")
+
+    import app.main as api_module
+
+    with TestClient(importlib.reload(api_module).app) as client:
+        body = client.post("/predict", json=VALID_PAYLOAD).json()
+
+    assert body["prediction"] == 1
+    assert body["probability"] >= 0.0

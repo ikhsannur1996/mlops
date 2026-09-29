@@ -7,8 +7,6 @@ import pytest
 from src import retrain
 from tests.helpers import make_prediction_rows, seed_predictions
 
-SHIFTED_INCOME = 500_000_000.0
-
 
 @pytest.fixture
 def retrain_calls(monkeypatch):
@@ -34,20 +32,14 @@ def test_retrain_skips_when_there_is_no_drift(train_frame, retrain_calls):
 
 
 def test_retrain_waits_for_the_auto_retrain_flag(train_frame, retrain_calls):
-    seed_predictions(
-        os.environ["PREDICTION_DB"],
-        make_prediction_rows(train_frame, income=SHIFTED_INCOME),
-    )
+    seed_predictions(os.environ["PREDICTION_DB"], make_prediction_rows(train_frame, drift="all"))
 
     assert retrain.main() == retrain.ACTION_DRIFT_LOCKED
     assert retrain_calls == []
 
 
 def test_retrain_retrains_after_drift_when_enabled(train_frame, monkeypatch, retrain_calls):
-    seed_predictions(
-        os.environ["PREDICTION_DB"],
-        make_prediction_rows(train_frame, income=SHIFTED_INCOME),
-    )
+    seed_predictions(os.environ["PREDICTION_DB"], make_prediction_rows(train_frame, drift="all"))
     monkeypatch.setenv("AUTO_RETRAIN", "1")
 
     assert retrain.main() == retrain.ACTION_RETRAINED

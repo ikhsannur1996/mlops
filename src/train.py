@@ -1,76 +1,75 @@
-"""Train the credit-default model and register it in the MLflow Model Registry."""
+"""Train the credit-default model on the train split and register it in MLflow."""
 
 import os
+import sys
 
 import mlflow
 import mlflow.sklearn
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import (
-    accuracy_score,
-    average_precision_score,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
-)
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_DATA = os.path.join(BASE, "data", "train.csv")
+if BASE not in sys.path:
+    sys.path.insert(0, BASE)
+
+from src.metrics import classification_metrics  # noqa: E402
+
+DEFAULT_TRAIN = os.path.join(BASE, "data", "train.csv")
+DEFAULT_TEST = os.path.join(BASE, "data", "test.csv")
 
 FEATURES = ["age", "income", "loan_amount", "tenure"]
 TARGET = "default"
 EXPERIMENT = "credit-default"
 REGISTERED_MODEL = "credit-default"
 MODEL_PARAMS = {"n_estimators": 150, "max_depth": 6, "random_state": 42}
-TEST_SIZE = 0.25
-RANDOM_STATE = 42
 
 
 def main():
-    """Fit the model, log params/metrics/artifacts and register a new version."""
+    """Fit on the train split, score the held-out test split, register the model."""
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
     mlflow.set_experiment(EXPERIMENT)
 
-    data_path = os.getenv("TRAIN_DATA", DEFAULT_DATA)
-    df = pd.read_csv(data_path)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        df[FEATURES],
-        df[TARGET],
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=df[TARGET],
-    )
+    train_path = os.getenv("TRAIN_DATA", DEFAULT_TRAIN)
+    test_path = os.getenv("TEST_DATA", DEFAULT_TEST)
+    train = pd.read_csv(train_path)
+    holdout = pd.read_csv(test_path)
 
     model = RandomForestClassifier(**MODEL_PARAMS)
 
     with mlflow.start_run(run_name="training"):
-        model.fit(X_train, y_train)
-        pred = model.predict(X_test)
-        prob = model.predict_proba(X_test)[:, 1]
+        model.fit(train[FEATURES], train[TARGET])
 
-        metrics = {
-            "accuracy": accuracy_score(y_test, pred),
-            "precision": precision_score(y_test, pred, zero_division=0),
-            "recall": recall_score(y_test, pred, zero_division=0),
-            "f1": f1_score(y_test, pred, zero_division=0),
-            "roc_auc": roc_auc_score(y_test, prob),
-            "pr_auc": average_precision_score(y_test, prob),
-        }
+        predictions = model.predict(holdout[FEATURES])
+        probabilities = model.predict_proba(holdout[FEATURES])[:, 1]
+        metrics = classification_metrics(holdout[TARGET], predictions, probabilities)
+
+        # The 0.5 cut-off flags almost no one at a realistic bad rate, so record
+        # the F1-optimal threshold for operators to set as DECISION_THRESHOLD.
+        sweep = np.arange(0.05, 0.96, 0.05)
+        f1_sweep = [
+            f1_score(holdout[TARGET], (probabilities >= threshold).astype(int), zero_division=0)
+            for threshold in sweep
+        ]
+        best_threshold = float(sweep[int(np.argmax(f1_sweep))])
+        best_f1 = float(max(f1_sweep))
 
         mlflow.log_params(
             {
                 "model": "RandomForestClassifier",
+                "decision_threshold": round(best_threshold, 2),
                 "feature_count": len(FEATURES),
-                "dataset": os.path.basename(data_path),
-                "train_rows": len(X_train),
-                "test_rows": len(X_test),
+                "train_dataset": os.path.basename(train_path),
+                "holdout_dataset": os.path.basename(test_path),
+                "train_rows": len(train),
+                "holdout_rows": len(holdout),
+                "holdout_default_rate": round(float(holdout[TARGET].mean()), 4),
                 **MODEL_PARAMS,
             }
         )
         mlflow.log_metrics(metrics)
+        mlflow.log_metric("best_f1", best_f1)
 
         mlflow.sklearn.log_model(
             model,
@@ -81,13 +80,15 @@ def main():
             serialization_format="cloudpickle",
         )
 
-        print("Training metrics:")
+        print(f"trained on {len(train)} rows, scored {len(holdout)} held-out rows")
+        print("Holdout metrics:")
         for key, value in metrics.items():
             print(f"{key}: {value:.4f}")
+        print(f"flagged at the 0.5 cut-off: {float(predictions.mean()):.4f} of applicants")
+        print(f"F1 peaks at threshold {best_threshold:.2f} (F1={best_f1:.4f}) - set DECISION_THRESHOLD to use it")
 
     return metrics
 
 
 if __name__ == "__main__":
     main()
-
