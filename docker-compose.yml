@@ -9,3 +9,4 @@ services:
       - ./mlruns:/app/mlruns
       - ./data:/app/data
       - ./reports:/app/reports
+      - ./models:/app/models

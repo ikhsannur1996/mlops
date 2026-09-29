@@ -1,4 +1,5 @@
 import os
+import joblib
 import numpy as np
 import pandas as pd
 import mlflow
@@ -198,6 +199,12 @@ with mlflow.start_run(run_name="Monitoring"):
     mlflow.log_metric("max_psi", max_drift)
     mlflow.set_tag("drift_status", "DRIFT" if max_drift > DRIFT_THRESHOLD else "OK")
     mlflow.set_tag("automatic_retraining", str(retrained))
+
+# -------------------------------------------------
+# 7. Save the fitted champion for the FastAPI app
+# -------------------------------------------------
+os.makedirs("models", exist_ok=True)
+joblib.dump({"model": champion_model, "name": champion}, "models/champion.joblib")
 
 print("\n=== MLOps Education Demo ===")
 print("Champion  :", champion)

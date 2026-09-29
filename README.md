@@ -14,6 +14,22 @@ Then open:
 - Evidently: http://localhost:8001
 - API: http://localhost:8000
 
+## Test the API
+
+Interactive docs (Swagger UI): http://localhost:8000/docs
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"age": 34, "monthly_income": 12000000, "loan_amount": 80000000, "tenure_months": 36}'
+```
+
+Response:
+
+```json
+{"prediction": "Good", "probability_risk": 0.12, "model": "Logistic Regression"}
+```
+
 ## What it demonstrates
 
 ```text

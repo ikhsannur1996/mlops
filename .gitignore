@@ -18,6 +18,7 @@ data/
 reports/
 mlruns/
 artifacts/
+models/
 *.joblib
 *.db
 
