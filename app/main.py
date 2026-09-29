@@ -1,16 +1,16 @@
 import os
 import sqlite3
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import mlflow
+import mlflow.sklearn
 import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
 DB = os.getenv("PREDICTION_DB", "predictions.db")
-
-app = FastAPI(title="Credit Default MLOps API")
 
 class Customer(BaseModel):
     age: int
@@ -33,18 +33,23 @@ def init_db():
         )
         ''')
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+app = FastAPI(title="Credit Default MLOps API", lifespan=lifespan)
+
 def get_model():
     client = mlflow.MlflowClient()
     versions = client.search_model_versions("name='credit-default'")
     if not versions:
         raise RuntimeError("No registered model. Run training first.")
     version = sorted(versions, key=lambda x: int(x.version), reverse=True)[0]
-    model = mlflow.pyfunc.load_model(version.source)
+    # Load the scikit-learn estimator (not a pyfunc wrapper) so predict_proba
+    # is available for the default probability.
+    model = mlflow.sklearn.load_model(version.source)
     return model, str(version.version)
-
-@app.on_event("startup")
-def startup():
-    init_db()
 
 @app.get("/health")
 def health():

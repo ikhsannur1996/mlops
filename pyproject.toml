@@ -1,0 +1,14 @@
+# Tooling configuration only. Runtime dependencies live in requirements.txt.
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = ["mlruns", "artifacts", ".venv"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

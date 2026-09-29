@@ -126,7 +126,7 @@ It records:
 
 ## 9. Run retraining
 
-Manual:
+Dry run (monitoring only, no retraining):
 
 ```bash
 docker compose exec api python src/retrain.py
@@ -138,4 +138,20 @@ Automatic retraining mode:
 docker compose exec -e AUTO_RETRAIN=1 api python src/retrain.py
 ```
 
-The command performs monitoring, then retraining and detailed evaluation.
+The command performs monitoring first and retrains only when the maximum feature
+PSI exceeds `DRIFT_THRESHOLD` (default `0.20`).
+
+It prints the action it took:
+
+```text
+no-data        not enough production predictions yet
+no-drift       drift below the threshold, nothing to do
+drift-locked   drift detected but AUTO_RETRAIN is not enabled
+retrained      training and detailed evaluation were re-run
+```
+
+Set `DRIFT_THRESHOLD` in the container environment to change the sensitivity:
+
+```bash
+docker compose exec -e AUTO_RETRAIN=1 -e DRIFT_THRESHOLD=0.10 api python src/retrain.py
+```
