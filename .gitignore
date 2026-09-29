@@ -13,22 +13,13 @@ venv/
 .coverage
 htmlcov/
 
-# Data (data/train.csv is the committed sample dataset)
-data/raw/*.csv
-data/processed/*.csv
-data/production_batch.csv
-
-# Models, tracking store and prediction log
-model/*.joblib
-models/*.joblib
+# Generated data, models, tracking store and logs
+data/
+reports/
 mlruns/
 artifacts/
+*.joblib
 *.db
-
-# Generated reports
-reports/evaluation/
-reports/monitoring/
-reports/simulation/
 
 # OS
 .DS_Store

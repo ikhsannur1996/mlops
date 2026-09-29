@@ -9,11 +9,7 @@ __pycache__/
 .ruff_cache/
 mlruns/
 artifacts/
-mlflow.db
-mlflow-ci.db
 *.db
 reports/
-docs/
-tests/
 *.md
 .DS_Store
