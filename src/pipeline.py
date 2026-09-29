@@ -11,8 +11,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
-from evidently.report import Report
-from evidently.metric_preset import DataDriftPreset, DataQualityPreset
+from evidently.legacy.report import Report
+from evidently.legacy.metric_preset import DataDriftPreset, DataQualityPreset
 
 FEATURES = ["age", "monthly_income", "loan_amount", "tenure_months"]
 TARGET = "credit_status"
@@ -90,7 +90,10 @@ for name, model in models.items():
 
         mlflow.log_metrics(metrics)
         mlflow.log_param("model", name)
-        mlflow.sklearn.log_model(model, "model")
+        mlflow.sklearn.log_model(
+            model, name="model",
+            skops_trusted_types=["sklearn.tree._tree.Tree"]
+        )
 
         results[name] = metrics
 
@@ -180,7 +183,10 @@ if max_drift > DRIFT_THRESHOLD:
         mlflow.log_param("trigger", "data_drift")
         mlflow.log_param("previous_champion", champion)
         mlflow.log_metric("max_psi", max_drift)
-        mlflow.sklearn.log_model(retrain_model, "retrained_model")
+        mlflow.sklearn.log_model(
+            retrain_model, name="retrained_model",
+            skops_trusted_types=["sklearn.tree._tree.Tree"]
+        )
 
     retrained = True
 else:

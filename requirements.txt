@@ -1,7 +1,7 @@
-mlflow
+mlflow==3.16.1
 fastapi
 uvicorn
 pandas
 numpy
 scikit-learn
-evidently
+evidently==0.7.23
