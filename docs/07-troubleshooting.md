@@ -68,6 +68,22 @@ Then test `/health` and `/predict`.
 
 Make at least 10 calls to `/predict`.
 
+## Invalid Host header - possible DNS rebinding attack detected
+
+The MLflow UI rejected the `Host` header. The default allow-list covers
+only localhost and private network addresses, so public IPs, domains,
+`.local` names and VS Code forwarded ports are blocked.
+
+Restart MLflow with your host allowed:
+
+```bash
+MLFLOW_SERVER_ALLOWED_HOSTS="PUBLIC_IP" make mlflow
+```
+
+For Docker, set `MLFLOW_SERVER_ALLOWED_HOSTS=PUBLIC_IP` in `.env` and run
+`docker compose up -d` again. Use a comma-separated list for several hosts
+or `*` to accept any (demo only). Port 8000 is not affected.
+
 ## Browser cannot access the VM
 
 Check:

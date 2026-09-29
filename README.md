@@ -209,6 +209,7 @@ Every path and threshold is configurable through environment variables. Copy
 | Variable | Default | Used by |
 | --- | --- | --- |
 | `MLFLOW_TRACKING_URI` | `http://localhost:5000` | train, evaluate, monitor, API |
+| `MLFLOW_SERVER_ALLOWED_HOSTS` | *(unset → localhost + private IPs)* | MLflow UI — Host headers allowed past the DNS-rebinding guard |
 | `PREDICTION_DB` | `predictions.db` | API, monitor |
 | `TRAIN_DATA` | `data/train.csv` | train, monitor |
 | `TEST_DATA` | `data/test.csv` | train, evaluate, simulate |

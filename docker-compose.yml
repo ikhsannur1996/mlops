@@ -4,6 +4,11 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
+    environment:
+      # MLflow rejects Host headers outside this list (DNS rebinding guard).
+      # Defaults cover localhost and private IPs; set it in .env when you
+      # open the UI through a public IP, domain or forwarded port.
+      MLFLOW_SERVER_ALLOWED_HOSTS: ${MLFLOW_SERVER_ALLOWED_HOSTS:-}
     command: >
       sh -c "pip install --no-cache-dir 'mlflow>=3.0,<4' &&
       mlflow server --host 0.0.0.0 --port 5000
